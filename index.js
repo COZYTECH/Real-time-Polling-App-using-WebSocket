@@ -18,39 +18,25 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 
 const httpServer = createServer();
-const io = new Server(httpServer, {
-  // options
-});
+const io = new Server(httpServer, { cors: { origin: "*" } });
 
-let poll = {
-  optionA: 0,
-  optionB: 0,
-};
+let poll = { optionA: 0, optionB: 0 };
 
-io.on("connection", (ws) => {
+io.on("connection", (socket) => {
   console.log("Client connected");
 
-  // Send current poll state immediately
-  io.send(JSON.stringify({ type: "pollUpdate", data: poll }));
+  socket.emit("pollUpdate", poll);
 
-  io.on("message", (message) => {
-    const msg = JSON.parse(message);
-
-    if (msg.type === "vote") {
-      poll[msg.option] += 1;
-
-      // Broadcast updated poll to all clients
-      wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(JSON.stringify({ type: "pollUpdate", data: poll }));
-        }
-      });
+  socket.on("vote", (option) => {
+    if (poll[option] !== undefined) {
+      poll[option]++;
+      io.emit("pollUpdate", poll); // broadcast to all
     }
   });
 
-  ws.on("close", () => console.log("Client disconnected"));
+  socket.on("disconnect", () => console.log("Client disconnected"));
 });
 
-httpServer.listen(3000, () => {
-  console.log("serving is running on 3000");
-});
+httpServer.listen(3000, () =>
+  console.log("Server running on ws://localhost:3000")
+);
